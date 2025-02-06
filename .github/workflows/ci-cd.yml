@@ -1,0 +1,83 @@
+name: Building, Testing and Deploying a cpp project
+
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+        branches:
+            - main
+    
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+    
+      - name: install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ cmake
+
+      - name: Build Project
+        run: |
+          rm -rf build
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+
+  test:
+    name: Testing App
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ cmake libgtest-dev
+
+      - name: Perform tests
+        run: |
+          cd build
+          ctest --output-on-failure
+
+  lint:
+    name: Running Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+      - name: Verify Code is Error Free
+        run: cppcheck --enable-all --inconclusive --quiet --error-exitcode=1
+
+
+  deploy:
+    name: Deploy application to Dockerhub
+    runs-on: ubuntu-latest
+    needs: [build, test, lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login in to Dockerhub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build Docker Image
+        run: docker build -t umarjav04/cpp-pipeline:latest
+
+      - name: Push Docker Image to Dockerhub
+        run: docker push umarjav04/cpp-pipeline:latest
+
+
+
+         
